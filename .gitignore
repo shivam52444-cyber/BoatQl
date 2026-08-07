@@ -11,3 +11,6 @@ wheels/
 .env
 Dataset/
 Setup db/
+olist.db
+database.db
+chroma_db/
