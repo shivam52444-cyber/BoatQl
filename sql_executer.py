@@ -83,12 +83,26 @@ def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression
     valid_tables = {t.lower() for t in schema}
     column_lookup = _build_column_lookup_from_db()
 
+    # CTE names (WITH x AS (...)) are "virtual tables" defined within the
+    # query itself -- they're not in the schema, but they're legitimate.
+    # We can't know their exact output columns without evaluating them, so
+    # we allow the table reference but skip column-level checks for anything
+    # qualified with a CTE alias (handled below).
+    cte_names = {cte.alias.lower() for cte in parsed.find_all(exp.CTE) if cte.alias}
+
     # map alias -> real table name, e.g. "oi" -> "order_items"
     alias_to_table = {}
     referenced_tables = set()
 
     for table_expr in parsed.find_all(exp.Table):
         table_name = table_expr.name.lower()
+
+        if table_name in cte_names:
+            # references the CTE, not a real schema table -- skip whitelist check
+            alias = table_expr.alias.lower() if table_expr.alias else table_name
+            alias_to_table[alias] = table_name  # marks it as a CTE downstream
+            continue
+
         referenced_tables.add(table_name)
         alias = table_expr.alias.lower() if table_expr.alias else table_name
         alias_to_table[alias] = table_name
@@ -114,6 +128,8 @@ def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression
             real_table = alias_to_table.get(table_ref)
             if real_table is None:
                 raise SQLValidationError(f"Column references unknown table alias: '{table_ref}'")
+            if real_table in cte_names:
+                continue  # CTE output column -- can't validate without evaluating the CTE
             if col_name not in column_lookup.get(real_table, set()):
                 raise SQLValidationError(
                     f"Column '{col_name}' does not exist on table '{real_table}' "

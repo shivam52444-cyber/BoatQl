@@ -20,7 +20,9 @@ from Vector_store import retrieve_relevant_tables
 from graph.graphset import build_graph_from_yaml, expand_with_graph
 from sample import get_sample_rows, get_connection
 
-SCHEMA_PATH = "Schema/olist_schema.yaml"
+
+
+SCHEMA_PATH = "schema/olist_schema.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -93,14 +95,22 @@ def get_llm():
     return llm_with_fallback.with_structured_output(SQLGenerationResult)
 
 
+SYSTEM_PROMPT_TEXT = (
+    "You are a SQL analyst. You write a single, valid, READ-ONLY (SELECT-only) "
+    "SQL query to answer the user's question, using ONLY the tables, columns, "
+    "and foreign key relationships given below. Never write INSERT, UPDATE, "
+    "DELETE, DROP, or ALTER. Use the foreign key relationships to determine "
+    "correct joins -- do not invent joins, tables, or columns that aren't listed.\n\n"
+    "IMPORTANT: This is a historical dataset, not live data. Never use NOW() "
+    "or CURRENT_DATE for relative time filters like 'last quarter' or 'recent'. "
+    "Instead, anchor relative dates to the MAX(timestamp_column) actually present "
+    "in the relevant table -- e.g. use a subquery or CTE to find the latest date "
+    "in the data first, then filter relative to that.\n\n"
+    "Schema:\n{schema_context}"
+)
+
 PROMPT = ChatPromptTemplate.from_messages([
-    ("system",
-     "You are a SQL analyst. You write a single, valid, READ-ONLY (SELECT-only) "
-     "SQL query to answer the user's question, using ONLY the tables, columns, "
-     "and foreign key relationships given below. Never write INSERT, UPDATE, "
-     "DELETE, DROP, or ALTER. Use the foreign key relationships to determine "
-     "correct joins -- do not invent joins that aren't listed.\n\n"
-     "Schema:\n{schema_context}"),
+    ("system", SYSTEM_PROMPT_TEXT),
     ("human", "{query}")
 ])
 
@@ -136,12 +146,3 @@ if __name__ == "__main__":
     print("\nGenerated SQL:\n", result["sql"])
     print("\nExplanation:\n", result["explanation"])
     print("\nConfidence:", result["confidence"])
-    from sql_executer import execute_sql, SQLValidationError
-
-    try:
-        result = execute_sql(result["sql"])
-        print(result["columns"], result["row_count"])
-        for row in result["rows"]:
-            print(row)
-    except SQLValidationError as e:
-        print("Rejected before execution:", e)

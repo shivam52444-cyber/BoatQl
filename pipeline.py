@@ -1,5 +1,5 @@
 """
-The full pipeline: query -> generate SQL -> validate -> execute.
+The full pipeline: query -> generate SQL -> validate -> execute -> chart.
 
 If validation rejects the generated SQL (hallucinated column/table, or a
 write attempt), the specific error is fed back to the LLM as a correction
@@ -7,32 +7,22 @@ request, and it gets another attempt -- up to max_retries times -- instead
 of just failing outright.
 """
 
+import base64
 from langchain_core.prompts import ChatPromptTemplate
 
-from Sql_generator import build_context, get_llm, SQLGenerationResult
+from Sql_generator import build_context, get_llm, SQLGenerationResult, SYSTEM_PROMPT_TEXT
 from sql_executer import execute_sql, SQLValidationError
+from vizagent import generate_chart
 
 MAX_RETRIES = 2
 
 INITIAL_PROMPT = ChatPromptTemplate.from_messages([
-    ("system",
-     "You are a SQL analyst. You write a single, valid, READ-ONLY (SELECT-only) "
-     "SQL query to answer the user's question, using ONLY the tables, columns, "
-     "and foreign key relationships given below. Never write INSERT, UPDATE, "
-     "DELETE, DROP, or ALTER. Use the foreign key relationships to determine "
-     "correct joins -- do not invent joins, tables, or columns that aren't listed.\n\n"
-     "Schema:\n{schema_context}"),
+    ("system", SYSTEM_PROMPT_TEXT),
     ("human", "{query}"),
 ])
 
 RETRY_PROMPT = ChatPromptTemplate.from_messages([
-    ("system",
-     "You are a SQL analyst. You write a single, valid, READ-ONLY (SELECT-only) "
-     "SQL query to answer the user's question, using ONLY the tables, columns, "
-     "and foreign key relationships given below. Never write INSERT, UPDATE, "
-     "DELETE, DROP, or ALTER. Use the foreign key relationships to determine "
-     "correct joins -- do not invent joins, tables, or columns that aren't listed.\n\n"
-     "Schema:\n{schema_context}"),
+    ("system", SYSTEM_PROMPT_TEXT),
     ("human", "{query}"),
     ("ai", "{previous_sql}"),
     ("human",
@@ -94,24 +84,63 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     raise SQLValidationError("Failed to produce valid SQL and no retries were allowed.")
 
 
+def ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) -> dict:
+    """The single top-level entrypoint: user query in, SQL + results + chart
+    out. This is what your FastAPI route should call.
+
+    If SQL generation/execution fails after all retries, the SQLValidationError
+    propagates -- the caller (e.g. the API route) decides how to surface that
+    to the user. Chart generation failures do NOT fail the whole request --
+    if charting breaks for any reason, we still return the SQL results with
+    chart=None, since the SQL answer is the important part.
+    """
+    result = generate_and_execute(query, max_retries=max_retries)
+
+    result["chart"] = None
+    if include_chart and result["rows"]:
+        try:
+            result["chart"] = generate_chart(
+                query=query,
+                columns=result["columns"],
+                rows=result["rows"],
+            )
+        except Exception as e:
+            result["chart_error"] = str(e)
+
+    return result
+
+
 if __name__ == "__main__":
     try:
-        result = generate_and_execute("What were our top 5 products by revenue last quarter?")
+        result = ask("What were our top 5 products by revenue last quarter?")
 
         print(f"Succeeded on attempt {result['attempt_count']} (of {len(result['attempts'])} total tries)")
-        if len(result["attempts"]) > 1:
-            print("\nRetry history:")
-            for i, a in enumerate(result["attempts"], 1):
-                print(f"  Attempt {i}: {a['sql']}")
-                if "fixed_error" in a:
-                    print(f"    (previous error: {a['fixed_error']})")
-
         print("\nFinal SQL:\n", result["sql"])
         print("\nExplanation:\n", result["explanation"])
         print(f"\nColumns: {result['columns']}")
         print(f"Row count: {result['row_count']}")
         for row in result["rows"][:5]:
             print(" ", row)
+
+        if result["chart"]:
+            chart = result["chart"]
+            print("\nChart type:", chart["chart_type"])
+            print("Chart spec reasoning:", chart["spec"]["reasoning"])
+
+            if chart["type"] == "image":
+                out_path = "chart_output.png"
+                with open(out_path, "wb") as f:
+                    f.write(base64.b64decode(chart["image_base64"]))
+                print(f"Saved chart to {out_path}")
+            elif chart["type"] == "number_card":
+                print(f"Number card: {chart['title']} = {chart['value']}")
+            elif chart["type"] == "table":
+                print(f"Table with {len(chart['rows'])} rows (see above)")
+
+        elif "chart_error" in result:
+            print("\nChart generation failed:", result["chart_error"])
+        elif not result["rows"]:
+            print("\nNo chart generated: query returned 0 rows.")
 
     except SQLValidationError as e:
         print("Failed after all retries:", e)
