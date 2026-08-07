@@ -1,0 +1,84 @@
+# schema/olist_schema.yaml
+tables:
+  customers:
+    primary_key: customer_id
+    description: "One row per unique customer registration; note customer_id is order-specific, customer_unique_id identifies the real person across orders."
+    columns:
+      customer_id: "Unique ID per order-customer record"
+      customer_unique_id: "True unique identifier for a customer across multiple orders"
+      customer_city: "City of customer"
+      customer_state: "Brazilian state abbreviation (e.g., SP, RJ)"
+
+  orders:
+    primary_key: order_id
+    description: "One row per order placed, with status and timestamp lifecycle."
+    columns:
+      order_id: "Unique order identifier"
+      customer_id: "FK to customers"
+      order_status: "delivered, shipped, canceled, etc."
+      order_purchase_timestamp: "When the order was placed"
+    foreign_keys:
+      - column: customer_id
+        references: customers.customer_id
+
+  order_items:
+    primary_key: [order_id, order_item_id]
+    description: "Line items per order — one row per product within an order. Revenue/price analysis must go through this table, not orders directly."
+    columns:
+      order_id: "FK to orders"
+      product_id: "FK to products"
+      seller_id: "FK to sellers"
+      price: "Item price in BRL"
+      freight_value: "Shipping cost for this item"
+    foreign_keys:
+      - column: order_id
+        references: orders.order_id
+      - column: product_id
+        references: products.product_id
+      - column: seller_id
+        references: sellers.seller_id
+
+  order_payments:
+    primary_key: [order_id, payment_sequential]
+    description: "Payment details per order, can have multiple rows if split across payment methods."
+    columns:
+      order_id: "FK to orders"
+      payment_type: "credit_card, boleto, voucher, etc."
+      payment_value: "Amount paid in this installment/method"
+    foreign_keys:
+      - column: order_id
+        references: orders.order_id
+
+  order_reviews:
+    primary_key: review_id
+    description: "Customer reviews left per order."
+    columns:
+      order_id: "FK to orders"
+      review_score: "1-5 star rating"
+    foreign_keys:
+      - column: order_id
+        references: orders.order_id
+
+  products:
+    primary_key: product_id
+    description: "Product catalog with category and physical dimensions."
+    columns:
+      product_id: "Unique product identifier"
+      product_category_name: "FK to category_translation, in Portuguese"
+    foreign_keys:
+      - column: product_category_name
+        references: category_translation.product_category_name
+
+  sellers:
+    primary_key: seller_id
+    description: "Marketplace sellers."
+    columns:
+      seller_id: "Unique seller identifier"
+      seller_city: "City of seller"
+
+  category_translation:
+    primary_key: product_category_name
+    description: "Maps Portuguese category names to English."
+    columns:
+      product_category_name: "Category name in Portuguese"
+      product_category_name_english: "Category name in English"
