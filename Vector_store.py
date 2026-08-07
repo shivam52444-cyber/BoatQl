@@ -3,14 +3,15 @@ Embeds schema table docs into a local Chroma vector store, and exposes
 retrieve_relevant_tables() for semantic "which tables matter for this
 query" lookup.
 
-Uses sentence-transformers/all-MiniLM-L6-v2 run LOCALLY (downloaded once,
-then no network calls needed) -- avoids depending on HF's hosted Inference
-API, which is unreliable/inconsistent for many models. Groq doesn't offer
-an embeddings endpoint, so this is a separate model from whichever LLM
-(Groq/OpenAI) you use for SQL generation.
+Uses Chroma's built-in ONNX-based default embedding (all-MiniLM-L6-v2 via
+onnxruntime, no torch import). This avoids a torch-specific slowdown on
+Windows where antivirus real-time-scans torch's many DLLs on first import,
+which can add 20-30s to every fresh process start. onnxruntime has far
+fewer/smaller native binaries, so this overhead mostly disappears. Groq
+doesn't offer an embeddings endpoint, so this is a separate model from
+whichever LLM (Groq/OpenAI) you use for SQL generation.
 """
 
-import os
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -19,18 +20,23 @@ from embed_schema import build_embedding_docs
 PERSIST_DIR = "chroma_db"
 COLLECTION_NAME = "schema_tables"
 
+_collection_cache = None  # module-level cache so the embedding model loads once per process
+
 
 def get_collection():
+    global _collection_cache
+    if _collection_cache is not None:
+        return _collection_cache
+
     client = chromadb.PersistentClient(path=PERSIST_DIR)
 
-    embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name="all-MiniLM-L6-v2"
-    )
+    embed_fn = embedding_functions.DefaultEmbeddingFunction()
 
-    return client.get_or_create_collection(
+    _collection_cache = client.get_or_create_collection(
         name=COLLECTION_NAME,
         embedding_function=embed_fn,
     )
+    return _collection_cache
 
 
 def build_vector_store():

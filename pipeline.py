@@ -14,6 +14,10 @@ from Sql_generator import build_context, get_llm, SQLGenerationResult, SYSTEM_PR
 from sql_executer import execute_sql, SQLValidationError
 from vizagent import generate_chart
 
+
+from langsmith import traceable
+
+
 MAX_RETRIES = 2
 
 INITIAL_PROMPT = ChatPromptTemplate.from_messages([
@@ -33,6 +37,7 @@ RETRY_PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
+@traceable(name="generate_and_execute", run_type="chain")
 def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     """Runs the full pipeline with self-correction. Returns a dict with the
     final SQL, explanation, results, and how many attempts it took. Raises
@@ -84,6 +89,7 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     raise SQLValidationError("Failed to produce valid SQL and no retries were allowed.")
 
 
+@traceable(name="ask_pipeline", run_type="chain")
 def ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) -> dict:
     """The single top-level entrypoint: user query in, SQL + results + chart
     out. This is what your FastAPI route should call.
@@ -112,7 +118,7 @@ def ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) 
 
 if __name__ == "__main__":
     try:
-        result = ask("What were our top 5 products by revenue last quarter?")
+        result = ask("What were our top 5 products by revenue last year?")
 
         print(f"Succeeded on attempt {result['attempt_count']} (of {len(result['attempts'])} total tries)")
         print("\nFinal SQL:\n", result["sql"])

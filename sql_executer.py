@@ -13,10 +13,16 @@ Only if both pass does the query touch the database.
 import yaml
 import sqlglot
 from sqlglot import exp
+from langsmith import traceable
 
 from sample import get_connection
 
 SCHEMA_PATH = "schema/olist_schema.yaml"
+
+
+
+
+
 
 # statement types we never allow, regardless of framing
 FORBIDDEN_STATEMENT_TYPES = (
@@ -54,6 +60,7 @@ def _build_column_lookup_from_db() -> dict[str, set[str]]:
     return lookup
 
 
+@traceable(name="validate_sql", run_type="tool")
 def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression:
     """Raises SQLValidationError if invalid. Returns the parsed expression if OK."""
 
@@ -89,6 +96,15 @@ def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression
     # we allow the table reference but skip column-level checks for anything
     # qualified with a CTE alias (handled below).
     cte_names = {cte.alias.lower() for cte in parsed.find_all(exp.CTE) if cte.alias}
+
+    # a CTE's own output columns (e.g. `SELECT MAX(x) AS max_date FROM ...`
+    # inside the CTE) are also legitimate targets for unqualified references
+    # later in the query (e.g. `(SELECT max_date FROM last_quarter)`).
+    cte_output_columns = set()
+    for cte in parsed.find_all(exp.CTE):
+        for sel in cte.this.selects:
+            if sel.output_name:
+                cte_output_columns.add(sel.output_name.lower())
 
     # map alias -> real table name, e.g. "oi" -> "order_items"
     alias_to_table = {}
@@ -136,8 +152,8 @@ def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression
                     f"(referenced as '{table_ref}.{col_name}')"
                 )
         else:
-            if col_name in select_aliases:
-                continue  # refers to a computed SELECT-list alias, not a table column
+            if col_name in select_aliases or col_name in cte_output_columns:
+                continue  # refers to a computed SELECT-list alias or CTE output column, not a table column
             # no table prefix -- must exist on at least ONE referenced table
             if not any(col_name in column_lookup.get(t, set()) for t in referenced_tables):
                 raise SQLValidationError(f"Column '{col_name}' not found on any referenced table")
@@ -145,6 +161,7 @@ def validate_sql(sql: str, schema_path: str = SCHEMA_PATH) -> sqlglot.Expression
     return parsed
 
 
+@traceable(name="execute_sql", run_type="tool")
 def execute_sql(sql: str, schema_path: str = SCHEMA_PATH, row_limit: int = 1000) -> dict:
     """Validates then executes SQL. Returns rows + column names, or raises
     SQLValidationError before ever touching the database."""

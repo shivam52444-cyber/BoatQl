@@ -19,6 +19,12 @@ import matplotlib.pyplot as plt
 from chart_spec import ChartSpec
 
 
+
+from langsmith import traceable
+
+
+
+
 class ChartRenderError(Exception):
     """Raised when a ChartSpec can't actually be rendered against the given data."""
     pass
@@ -131,6 +137,7 @@ _RENDERERS = {
 }
 
 
+@traceable(name="render_chart", run_type="tool")
 def render_chart(rows: list[dict], spec: ChartSpec) -> dict[str, Any]:
     """Dispatches to the correct trusted renderer based on spec.chart_type.
     Raises ChartRenderError if the spec doesn't match the data (e.g. LLM

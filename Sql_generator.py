@@ -10,16 +10,31 @@ Flow:
     -> LLM (Groq primary, OpenAI fallback) generates {sql, explanation, confidence} as structured output
 """
 
+from Vector_store import retrieve_relevant_tables
+from graph.graphset import build_graph_from_yaml, expand_with_graph
+from sample import get_sample_rows, get_connection
+
+
+
+"""
+The SQL generation agent.
+
+Flow:
+  user query
+    -> vector store: top-k semantically relevant "seed" tables
+    -> graph: expand seeds to include bridge/join tables
+    -> for each expanded table: pull description (from schema yaml) + n sample rows (from duckdb)
+    -> assemble one context block
+    -> LLM (Groq primary, OpenAI fallback) generates {sql, explanation, confidence} as structured output
+"""
+
+import time
 import yaml
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-
-from Vector_store import retrieve_relevant_tables
-from graph.graphset import build_graph_from_yaml, expand_with_graph
-from sample import get_sample_rows, get_connection
-
+from langsmith import traceable
 
 
 SCHEMA_PATH = "schema/olist_schema.yaml"
@@ -37,20 +52,33 @@ class SQLGenerationResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Context building
 # ---------------------------------------------------------------------------
+@traceable(name="build_context", run_type="retriever")
 def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) -> dict:
     """Returns the assembled context needed to generate SQL: the expanded
     table set, a formatted schema block, and which tables were seeds vs
     bridge tables (useful for debugging/eval)."""
 
+    t0 = time.perf_counter()
     graph, schema = build_graph_from_yaml(SCHEMA_PATH)
+    t1 = time.perf_counter()
+    print(f"  [timing] build_graph_from_yaml: {t1 - t0:.2f}s")
 
     seed_tables = retrieve_relevant_tables(query, top_k=top_k)
+    t2 = time.perf_counter()
+    print(f"  [timing] retrieve_relevant_tables: {t2 - t1:.2f}s")
+
     expanded_tables = expand_with_graph(seed_tables, graph)
+    t3 = time.perf_counter()
+    print(f"  [timing] expand_with_graph: {t3 - t2:.2f}s")
 
     con = get_connection()
+    t4 = time.perf_counter()
+    print(f"  [timing] get_connection: {t4 - t3:.2f}s")
+
     try:
         table_blocks = []
         for table_name in sorted(expanded_tables):
+            table_start = time.perf_counter()
             table_info = schema["tables"][table_name]
 
             columns_text = "\n".join(
@@ -64,6 +92,8 @@ def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) ->
             fk_text = "\n".join(fk_lines) if fk_lines else "    (none)"
 
             samples = get_sample_rows(table_name, n=sample_rows_per_table, con=con)
+            table_elapsed = time.perf_counter() - table_start
+            print(f"  [timing] get_sample_rows({table_name}): {table_elapsed:.2f}s")
 
             table_blocks.append(
                 f"Table: {table_name}\n"
@@ -76,6 +106,7 @@ def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) ->
         con.close()
 
     schema_context = "\n\n---\n\n".join(table_blocks)
+    print(f"  [timing] TOTAL build_context: {time.perf_counter() - t0:.2f}s")
 
     return {
         "seed_tables": seed_tables,
