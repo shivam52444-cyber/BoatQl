@@ -8,11 +8,17 @@ text-to-SQL systems do anyway, since not every real DB has clean FK
 constraints either.
 """
 
+import functools
 import yaml
 import networkx as nx
 
 
-def build_graph_from_yaml(path: str = "Schema/olist_schema.yaml"):
+@functools.lru_cache(maxsize=1)
+def build_graph_from_yaml(path: str = "schema/olist_schema.yaml"):
+    """Cached: the schema file doesn't change while the app is running, so
+    this only actually parses the YAML and builds the graph once per
+    process -- every subsequent call (i.e. every query) reuses the same
+    graph object instead of rebuilding it from scratch."""
     with open(path) as f:
         schema = yaml.safe_load(f)
 
@@ -72,5 +78,3 @@ if __name__ == "__main__":
         "\nExpanded set for seeds {orders, products}:",
         expand_with_graph(["orders", "products"], graph),
     )
-    """Shortest path between two tables, treating edges as undirected
-    (a join doesn't care which side declared the FK)."""

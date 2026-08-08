@@ -16,17 +16,7 @@ from sample import get_sample_rows, get_connection
 
 
 
-"""
-The SQL generation agent.
 
-Flow:
-  user query
-    -> vector store: top-k semantically relevant "seed" tables
-    -> graph: expand seeds to include bridge/join tables
-    -> for each expanded table: pull description (from schema yaml) + n sample rows (from duckdb)
-    -> assemble one context block
-    -> LLM (Groq primary, OpenAI fallback) generates {sql, explanation, confidence} as structured output
-"""
 
 import time
 import yaml
@@ -40,18 +30,21 @@ from langsmith import traceable
 SCHEMA_PATH = "schema/olist_schema.yaml"
 
 
-# ---------------------------------------------------------------------------
-# Structured output schema -- this IS the "tool" the LLM is forced to call
-# ---------------------------------------------------------------------------
+
+from logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
+SCHEMA_PATH = "schema/olist_schema.yaml"
+
+
 class SQLGenerationResult(BaseModel):
     sql: str = Field(description="A single, valid, read-only (SELECT-only) SQL query answering the user's question.")
     explanation: str = Field(description="Plain-English explanation of what the query does and why it's structured this way.")
     confidence: float = Field(description="Model's confidence in the correctness of this query, from 0.0 to 1.0.")
 
 
-# ---------------------------------------------------------------------------
-# Context building
-# ---------------------------------------------------------------------------
 @traceable(name="build_context", run_type="retriever")
 def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) -> dict:
     """Returns the assembled context needed to generate SQL: the expanded
@@ -61,19 +54,19 @@ def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) ->
     t0 = time.perf_counter()
     graph, schema = build_graph_from_yaml(SCHEMA_PATH)
     t1 = time.perf_counter()
-    print(f"  [timing] build_graph_from_yaml: {t1 - t0:.2f}s")
+    logger.debug(f"build_graph_from_yaml: {t1 - t0:.2f}s")
 
     seed_tables = retrieve_relevant_tables(query, top_k=top_k)
     t2 = time.perf_counter()
-    print(f"  [timing] retrieve_relevant_tables: {t2 - t1:.2f}s")
+    logger.debug(f"retrieve_relevant_tables: {t2 - t1:.2f}s")
 
     expanded_tables = expand_with_graph(seed_tables, graph)
     t3 = time.perf_counter()
-    print(f"  [timing] expand_with_graph: {t3 - t2:.2f}s")
+    logger.debug(f"expand_with_graph: {t3 - t2:.2f}s")
 
     con = get_connection()
     t4 = time.perf_counter()
-    print(f"  [timing] get_connection: {t4 - t3:.2f}s")
+    logger.debug(f"get_connection: {t4 - t3:.2f}s")
 
     try:
         table_blocks = []
@@ -93,7 +86,7 @@ def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) ->
 
             samples = get_sample_rows(table_name, n=sample_rows_per_table, con=con)
             table_elapsed = time.perf_counter() - table_start
-            print(f"  [timing] get_sample_rows({table_name}): {table_elapsed:.2f}s")
+            logger.debug(f"get_sample_rows({table_name}): {table_elapsed:.2f}s")
 
             table_blocks.append(
                 f"Table: {table_name}\n"
@@ -106,7 +99,7 @@ def build_context(query: str, top_k: int = 5, sample_rows_per_table: int = 5) ->
         con.close()
 
     schema_context = "\n\n---\n\n".join(table_blocks)
-    print(f"  [timing] TOTAL build_context: {time.perf_counter() - t0:.2f}s")
+    logger.debug(f"TOTAL build_context: {time.perf_counter() - t0:.2f}s")
 
     return {
         "seed_tables": seed_tables,

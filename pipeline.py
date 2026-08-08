@@ -15,8 +15,20 @@ from sql_executer import execute_sql, SQLValidationError
 from vizagent import generate_chart
 
 
+import base64
+from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
+
+from Review_queue import queue_run_for_review
+
+
+
+
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 MAX_RETRIES = 2
 
@@ -47,6 +59,8 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     context = build_context(query)
     llm = get_llm()
 
+    logger.info(f"generate_and_execute start | query={query!r} | seed_tables={context['seed_tables']} | expanded_tables={context['expanded_tables']}")
+
     chain = INITIAL_PROMPT | llm
     result: SQLGenerationResult = chain.invoke({
         "schema_context": context["schema_context"],
@@ -58,6 +72,16 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     for attempt_num in range(1, max_retries + 1):
         try:
             exec_result = execute_sql(result.sql)
+            logger.info(f"generate_and_execute succeeded | attempt={attempt_num}/{max_retries} | rows={exec_result['row_count']}")
+
+            if attempt_num > 1:
+                logger.warning(f"query needed {attempt_num} attempts before succeeding | query={query!r}")
+                run = get_current_run_tree()
+                queue_run_for_review(
+                    str(run.id) if run else None,
+                    reason=f"succeeded but needed {attempt_num} attempts",
+                )
+
             return {
                 "query": query,
                 "seed_tables": context["seed_tables"],
@@ -72,7 +96,15 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
                 "attempt_count": attempt_num,
             }
         except SQLValidationError as e:
+            logger.warning(f"validation failed | attempt={attempt_num}/{max_retries} | error={e}")
+
             if attempt_num == max_retries:
+                logger.error(f"generate_and_execute FAILED after {max_retries} attempts | query={query!r} | last_error={e}")
+                run = get_current_run_tree()
+                queue_run_for_review(
+                    str(run.id) if run else None,
+                    reason=f"failed after {max_retries} attempts: {e}",
+                )
                 raise  # out of retries, let the caller handle the final failure
 
             retry_chain = RETRY_PROMPT | llm
@@ -111,14 +143,47 @@ def ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) 
                 rows=result["rows"],
             )
         except Exception as e:
+            logger.warning(f"chart generation failed | query={query!r} | error={e}")
             result["chart_error"] = str(e)
+
+    return result
+
+
+@traceable(name="guarded_ask", run_type="chain")
+def guarded_ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) -> dict:
+    """ask() wrapped with input/output guardrails. This is the entrypoint
+    your API route should actually call in production -- ask() stays
+    guardrail-free so it's easy to test/eval the core pipeline in isolation.
+
+    Raises GuardrailRejection if the input is rejected before ever reaching
+    the LLM. If the input passes but the output fails guardrails (e.g. PII
+    leaked into the explanation text), the explanation is replaced with a
+    safe placeholder rather than failing the whole request -- the SQL
+    results/chart are still useful even if the explanation had to be redacted.
+    """
+    from Guardrails import check_input, check_output, GuardrailRejection
+
+    try:
+        clean_query = check_input(query)  # raises GuardrailRejection if rejected
+    except GuardrailRejection as e:
+        logger.warning(f"input REJECTED by guardrails | query={query!r} | reason={e}")
+        raise
+
+    result = ask(clean_query, max_retries=max_retries, include_chart=include_chart)
+
+    try:
+        result["explanation"] = check_output(result["explanation"], prompt=clean_query)
+    except GuardrailRejection as e:
+        logger.warning(f"output flagged by guardrails, explanation redacted | query={query!r} | reason={e}")
+        result["explanation"] = "[Explanation withheld: contained sensitive content]"
+        result["output_guardrail_flag"] = str(e)
 
     return result
 
 
 if __name__ == "__main__":
     try:
-        result = ask("What were our top 5 products by revenue last year?")
+        result = ask("What were our top 5 products by revenue last quarter?")
 
         print(f"Succeeded on attempt {result['attempt_count']} (of {len(result['attempts'])} total tries)")
         print("\nFinal SQL:\n", result["sql"])

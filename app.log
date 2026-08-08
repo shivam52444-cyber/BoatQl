@@ -1,0 +1,102 @@
+2026-08-08 13:32:27 | INFO     | req=- | main | Starting up: warming caches (embedding model, vector store)...
+2026-08-08 13:32:30 | INFO     | req=- | main | Startup complete.
+2026-08-08 13:32:40 | INFO     | req=024538a9 | main | --> GET /
+2026-08-08 13:32:40 | INFO     | req=024538a9 | main | <-- GET / | status=404 | 0.00s
+2026-08-08 13:32:48 | INFO     | req=f6098221 | main | --> GET /docs
+2026-08-08 13:32:48 | INFO     | req=f6098221 | main | <-- GET /docs | status=200 | 0.00s
+2026-08-08 13:32:50 | INFO     | req=ac3e754f | main | --> GET /openapi.json
+2026-08-08 13:32:50 | INFO     | req=ac3e754f | main | <-- GET /openapi.json | status=200 | 0.05s
+2026-08-08 13:33:40 | INFO     | req=cadd4e1f | main | --> GET /health
+2026-08-08 13:33:40 | INFO     | req=cadd4e1f | main | <-- GET /health | status=200 | 0.01s
+2026-08-08 13:33:43 | INFO     | req=84d69b7e | main | --> GET /health
+2026-08-08 13:33:43 | INFO     | req=84d69b7e | main | <-- GET /health | status=200 | 0.01s
+2026-08-08 13:34:44 | INFO     | req=60b6f237 | main | --> POST /ask
+2026-08-08 13:34:54 | INFO     | req=60b6f237 | pipeline | generate_and_execute start | query='count of all zipcode' | seed_tables=['customers', 'order_payments', 'order_reviews', 'orders', 'sellers'] | expanded_tables=['customers', 'order_items', 'order_payments', 'order_reviews', 'orders', 'sellers']
+2026-08-08 13:34:55 | INFO     | req=60b6f237 | pipeline | generate_and_execute succeeded | attempt=1/2 | rows=1
+2026-08-08 13:35:00 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: Transformers model Isotonic/deberta-v3-base_finetuned_ai4privacy_v2
+2026-08-08 13:35:01 | WARNING  | req=60b6f237 | presidio-analyzer | model_to_presidio_entity_mapping is missing from configuration, using default
+2026-08-08 13:35:01 | WARNING  | req=60b6f237 | presidio-analyzer | low_score_entity_names is missing from configuration, using default
+2026-08-08 13:35:01 | WARNING  | req=60b6f237 | presidio-analyzer | labels_to_ignore is missing from configuration, using default
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Created NLP engine: spacy. Loaded models: ['en', 'zh']
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CreditCardRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CreditCardRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CreditCardRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CreditCardRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UsBankRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UsLicenseRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UsItinRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UsPassportRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UsSsnRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: NhsRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UkNinoRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: SgFinRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: AuAbnRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: AuAcnRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: AuTfnRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: AuMedicareRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: InPanRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: InAadhaarRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: InVehicleRegistrationRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: InPassportRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: EsNifRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: EsNieRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: ItDriverLicenseRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: ItFiscalCodeRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: ItVatCodeRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: ItIdentityCardRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: ItPassportRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PlPeselRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CryptoRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: DateRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: EmailRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: IbanRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: IpRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: MedicalLicenseRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PhoneRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: UrlRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: InVoterRecognizer
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - CreditCardRecognizer supported languages: es, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - CreditCardRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - CreditCardRecognizer supported languages: pl, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - EsNifRecognizer supported languages: es, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - EsNieRecognizer supported languages: es, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - ItDriverLicenseRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - ItFiscalCodeRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - ItVatCodeRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - ItIdentityCardRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - ItPassportRecognizer supported languages: it, registry supported languages: en
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Recognizer not added to registry because language is not supported by registry - PlPeselRecognizer supported languages: pl, registry supported languages: en
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: SpacyRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: SpacyRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: CryptoRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PhoneRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: EmailRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: IpRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Loaded recognizer: PatternRecognizer
+2026-08-08 13:35:05 | INFO     | req=60b6f237 | presidio-analyzer | Removed 2 recognizers which had the name SpacyRecognizer
+2026-08-08 13:35:05 | WARNING  | req=60b6f237 | presidio-analyzer | Entity CUSTOM doesn't have the corresponding recognizer in language : en
+2026-08-08 13:35:08 | INFO     | req=60b6f237 | main | <-- POST /ask | status=200 | 23.74s
+2026-08-08 13:36:31 | INFO     | req=a63bf1a2 | main | --> POST /ask
+2026-08-08 13:36:36 | INFO     | req=a63bf1a2 | pipeline | generate_and_execute start | query='top 5 zip code by sales' | seed_tables=['customers', 'order_items', 'sellers', 'orders', 'order_reviews'] | expanded_tables=['customers', 'order_items', 'order_reviews', 'orders', 'sellers']
+2026-08-08 13:36:38 | INFO     | req=a63bf1a2 | pipeline | generate_and_execute succeeded | attempt=1/2 | rows=5
+2026-08-08 13:36:45 | INFO     | req=a63bf1a2 | matplotlib.category | Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2026-08-08 13:36:45 | INFO     | req=a63bf1a2 | matplotlib.category | Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2026-08-08 13:36:45 | WARNING  | req=a63bf1a2 | presidio-analyzer | Entity CUSTOM doesn't have the corresponding recognizer in language : en
+2026-08-08 13:36:46 | INFO     | req=a63bf1a2 | main | <-- POST /ask | status=200 | 14.69s
+2026-08-08 18:53:18 | INFO     | req=- | main | Shutting down.
