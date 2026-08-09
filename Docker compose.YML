@@ -1,0 +1,28 @@
+services:
+  boatql:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/Dataset
+      DB_PATH: /app/data/database.db
+      CHROMA_PERSIST_DIR: /app/chroma_db
+    volumes:
+      # persists the DB and vector store across container restarts/recreation
+      # so entrypoint.sh's idempotency checks actually skip the expensive
+      # setup steps on anything but a true first run.
+      - boatql_data:/app/data
+      - boatql_chroma:/app/chroma_db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s  # first run pays dataset download + DB build + model warmup
+    restart: unless-stopped
+
+volumes:
+  boatql_data:
+  boatql_chroma:

@@ -1,11 +1,10 @@
 # --- Server ---
-
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.7.1
 
-
-
-# --- Orchestration (LangChain, if you're using it for chains/agents) ---
+# --- LLM providers (via LangChain; raw groq/openai SDKs pulled in as deps) ---
 langchain==0.3.14
 langchain-core==0.3.29
 langchain-groq==0.2.3
@@ -13,14 +12,33 @@ langchain-openai==0.2.14
 
 # --- Database ---
 duckdb==1.1.3
-duckdb-engine==0.14.0     # lets SQLAlchemy talk to DuckDB
+duckdb-engine==0.14.0
 sqlalchemy==2.0.36
 
 # --- SQL validation/safety ---
-sqlglot==26.1.3           # parse/validate generated SQL (block writes, check tables)
+sqlglot==26.1.3
 
-# --- Graph (for your table-relationship graph) ---
+# --- Schema relationship graph ---
 networkx==3.4.2
+
+# --- Vector store for table retrieval ---
+chromadb==0.5.23
+
+# --- Schema config ---
+pyyaml==6.0.2
+
+# --- Charts ---
+matplotlib==3.10.0
+
+# --- Guardrails ---
+llm-guard==0.3.16
+
+# --- Observability ---
+langsmith==0.2.11
+
+# --- Docker dataset download ---
+kaggle==1.6.17
+kagglehub>=1.0.2
 
 # --- Utilities ---
 python-dotenv==1.0.1

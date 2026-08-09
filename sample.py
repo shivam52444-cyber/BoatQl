@@ -4,22 +4,10 @@ per table for context-building. Keep this file dumb on purpose -- no
 query generation logic here, just raw access.
 """
 
-"""
-Thin DuckDB helper: connect to the olist.db file and pull sample rows
-per table for context-building. Keep this file dumb on purpose -- no
-query generation logic here, just raw access.
-"""
-
+import os
 import duckdb
 
-DB_PATH = "database.db"
-
-"""
-Thin DuckDB helper: connect to the olist.db file and pull sample rows
-per table for context-building. Keep this file dumb on purpose -- no
-query generation logic here, just raw access.
-"""
-
+DB_PATH = os.environ.get("DB_PATH", r"D:\DATA science projects\BOatQl\DATABASE.db")
 
 
 def get_connection(db_path: str = DB_PATH):

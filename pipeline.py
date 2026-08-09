@@ -7,25 +7,16 @@ request, and it gets another attempt -- up to max_retries times -- instead
 of just failing outright.
 """
 
-import base64
-from langchain_core.prompts import ChatPromptTemplate
-
-from Sql_generator import build_context, get_llm, SQLGenerationResult, SYSTEM_PROMPT_TEXT
-from sql_executer import execute_sql, SQLValidationError
-from vizagent import generate_chart
-
-
+import time
 import base64
 from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 from langsmith.run_helpers import get_current_run_tree
 
-
+from Sql_generator import build_context, get_llm, SQLGenerationResult, SYSTEM_PROMPT_TEXT
+from sql_executer import execute_sql, SQLValidationError
+from vizagent import generate_chart
 from Review_queue import queue_run_for_review
-
-
-
-
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -56,8 +47,14 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
     SQLValidationError if it still fails to produce valid SQL after all
     retries are exhausted."""
 
+    t0 = time.perf_counter()
     context = build_context(query)
+    t1 = time.perf_counter()
+    logger.info(f"[timing] build_context: {t1 - t0:.2f}s")
+
     llm = get_llm()
+    t2 = time.perf_counter()
+    logger.info(f"[timing] get_llm: {t2 - t1:.2f}s")
 
     logger.info(f"generate_and_execute start | query={query!r} | seed_tables={context['seed_tables']} | expanded_tables={context['expanded_tables']}")
 
@@ -66,12 +63,16 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
         "schema_context": context["schema_context"],
         "query": query,
     })
+    t3 = time.perf_counter()
+    logger.info(f"[timing] initial LLM generation call: {t3 - t2:.2f}s")
 
     attempts = [{"sql": result.sql, "explanation": result.explanation}]
 
     for attempt_num in range(1, max_retries + 1):
         try:
+            t_exec_start = time.perf_counter()
             exec_result = execute_sql(result.sql)
+            logger.info(f"[timing] execute_sql (attempt {attempt_num}): {time.perf_counter() - t_exec_start:.2f}s")
             logger.info(f"generate_and_execute succeeded | attempt={attempt_num}/{max_retries} | rows={exec_result['row_count']}")
 
             if attempt_num > 1:
@@ -107,6 +108,7 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
                 )
                 raise  # out of retries, let the caller handle the final failure
 
+            t_retry_start = time.perf_counter()
             retry_chain = RETRY_PROMPT | llm
             result: SQLGenerationResult = retry_chain.invoke({
                 "schema_context": context["schema_context"],
@@ -114,6 +116,7 @@ def generate_and_execute(query: str, max_retries: int = MAX_RETRIES) -> dict:
                 "previous_sql": result.sql,
                 "error": str(e),
             })
+            logger.info(f"[timing] retry LLM generation call: {time.perf_counter() - t_retry_start:.2f}s")
             attempts.append({"sql": result.sql, "explanation": result.explanation, "fixed_error": str(e)})
 
     # first attempt succeeded (loop above returns immediately on success);
@@ -137,11 +140,13 @@ def ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool = True) 
     result["chart"] = None
     if include_chart and result["rows"]:
         try:
+            t_chart_start = time.perf_counter()
             result["chart"] = generate_chart(
                 query=query,
                 columns=result["columns"],
                 rows=result["rows"],
             )
+            logger.info(f"[timing] generate_chart: {time.perf_counter() - t_chart_start:.2f}s")
         except Exception as e:
             logger.warning(f"chart generation failed | query={query!r} | error={e}")
             result["chart_error"] = str(e)
@@ -163,27 +168,34 @@ def guarded_ask(query: str, max_retries: int = MAX_RETRIES, include_chart: bool 
     """
     from Guardrails import check_input, check_output, GuardrailRejection
 
+    t_input_start = time.perf_counter()
     try:
         clean_query = check_input(query)  # raises GuardrailRejection if rejected
     except GuardrailRejection as e:
         logger.warning(f"input REJECTED by guardrails | query={query!r} | reason={e}")
         raise
+    logger.info(f"[timing] check_input (guardrails): {time.perf_counter() - t_input_start:.2f}s")
 
     result = ask(clean_query, max_retries=max_retries, include_chart=include_chart)
 
+    t_output_start = time.perf_counter()
     try:
         result["explanation"] = check_output(result["explanation"], prompt=clean_query)
     except GuardrailRejection as e:
         logger.warning(f"output flagged by guardrails, explanation redacted | query={query!r} | reason={e}")
         result["explanation"] = "[Explanation withheld: contained sensitive content]"
         result["output_guardrail_flag"] = str(e)
+    logger.info(f"[timing] check_output (guardrails): {time.perf_counter() - t_output_start:.2f}s")
 
     return result
 
 
 if __name__ == "__main__":
+    from logging_config import setup_logging
+    setup_logging(log_to_console=True)  # want to see timing live during this debug run
+
     try:
-        result = ask("What were our top 5 products by revenue last quarter?")
+        result = guarded_ask("What were our top 5 products by revenue last quarter?")
 
         print(f"Succeeded on attempt {result['attempt_count']} (of {len(result['attempts'])} total tries)")
         print("\nFinal SQL:\n", result["sql"])

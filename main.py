@@ -33,6 +33,12 @@ async def lifespan(app: FastAPI):
 
     from Vector_store import retrieve_relevant_tables
     retrieve_relevant_tables("warmup query", top_k=1)
+    logger.info("Vector store / embedding model warmed.")
+
+    from Guardrails import check_input, check_output
+    check_input("warmup query")
+    check_output("warmup response")
+    logger.info("Guardrail scanners warmed.")
 
     logger.info("Startup complete.")
     yield
