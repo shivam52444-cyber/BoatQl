@@ -66,7 +66,7 @@ Evaluators are behavioral, not exact-match (SQL phrasing varies every run even w
 
 Full per-example results and scores appear in the LangSmith UI under **Datasets & Experiments → ai-sql-analyst-eval**.
 
-*(Populate this table with your own run's numbers before sharing this README — do not present numbers that weren't produced by an actual eval run.)*
+
 
 | Metric | Score |
 |---|---|
